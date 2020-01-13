@@ -1,5 +1,5 @@
 #import "AppController.h"
-#import "AsyncSocket.h"
+#import "GCDAsyncSocket.h"
 
 #define WELCOME_MSG  0
 #define ECHO_MSG     1
@@ -10,7 +10,7 @@
 
 #define FORMAT(format, ...) [NSString stringWithFormat:(format), ##__VA_ARGS__]
 
-@interface AppController (PrivateAPI)
+@interface AppController (PrivateAPI)<GCDAsyncSocketDelegate>
 - (void)logError:(NSString *)msg;
 - (void)logInfo:(NSString *)msg;
 - (void)logMessage:(NSString *)msg;
@@ -23,7 +23,7 @@
 {
 	if((self = [super init]))
 	{
-		listenSocket = [[AsyncSocket alloc] initWithDelegate:self];
+		listenSocket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:dispatch_get_main_queue()];;
 		connectedSockets = [[NSMutableArray alloc] initWithCapacity:1];
 		
 		isRunning = NO;
@@ -41,7 +41,7 @@
 	NSLog(@"Ready");
 	
 	// Advanced options - enable the socket to contine operations even during modal dialogs, and menu browsing
-	[listenSocket setRunLoopModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
+//	[listenSocket setRunLoopModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
 }
 
 - (void)scrollToBottom
@@ -143,12 +143,12 @@
 	}
 }
 
-- (void)onSocket:(AsyncSocket *)sock didAcceptNewSocket:(AsyncSocket *)newSocket
+- (void)onSocket:(GCDAsyncSocket *)sock didAcceptNewSocket:(GCDAsyncSocket *)newSocket
 {
 	[connectedSockets addObject:newSocket];
 }
 
-- (void)onSocket:(AsyncSocket *)sock didConnectToHost:(NSString *)host port:(UInt16)port
+- (void)onSocket:(GCDAsyncSocket *)sock didConnectToHost:(NSString *)host port:(UInt16)port
 {
 	[self logInfo:FORMAT(@"Accepted client %@:%hu", host, port)];
 	
@@ -157,18 +157,18 @@
 	
 	[sock writeData:welcomeData withTimeout:-1 tag:WELCOME_MSG];
 	
-	[sock readDataToData:[AsyncSocket CRLFData] withTimeout:READ_TIMEOUT tag:0];
+	[sock readDataToData:[GCDAsyncSocket CRLFData] withTimeout:READ_TIMEOUT tag:0];
 }
 
-- (void)onSocket:(AsyncSocket *)sock didWriteDataWithTag:(long)tag
+- (void)onSocket:(GCDAsyncSocket *)sock didWriteDataWithTag:(long)tag
 {
 	if(tag == ECHO_MSG)
 	{
-		[sock readDataToData:[AsyncSocket CRLFData] withTimeout:READ_TIMEOUT tag:0];
+		[sock readDataToData:[GCDAsyncSocket CRLFData] withTimeout:READ_TIMEOUT tag:0];
 	}
 }
 
-- (void)onSocket:(AsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag
+- (void)onSocket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag
 {
 	NSData *strData = [data subdataWithRange:NSMakeRange(0, [data length] - 2)];
 	NSString *msg = [[NSString alloc] initWithData:strData encoding:NSUTF8StringEncoding];
@@ -191,7 +191,7 @@
  * It allows us to optionally extend the timeout.
  * We use this method to issue a warning to the user prior to disconnecting them.
 **/
-- (NSTimeInterval)onSocket:(AsyncSocket *)sock
+- (NSTimeInterval)onSocket:(GCDAsyncSocket *)sock
   shouldTimeoutReadWithTag:(long)tag
 				   elapsed:(NSTimeInterval)elapsed
 				 bytesDone:(NSUInteger)length
@@ -209,12 +209,12 @@
 	return 0.0;
 }
 
-- (void)onSocket:(AsyncSocket *)sock willDisconnectWithError:(NSError *)err
+- (void)onSocket:(GCDAsyncSocket *)sock willDisconnectWithError:(NSError *)err
 {
 	[self logInfo:FORMAT(@"Client Disconnected: %@:%hu", [sock connectedHost], [sock connectedPort])];
 }
 
-- (void)onSocketDidDisconnect:(AsyncSocket *)sock
+- (void)onSocketDidDisconnect:(GCDAsyncSocket *)sock
 {
 	[connectedSockets removeObject:sock];
 }

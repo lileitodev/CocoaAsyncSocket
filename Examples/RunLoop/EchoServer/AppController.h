@@ -1,10 +1,10 @@
 #import <Cocoa/Cocoa.h>
 
-@class AsyncSocket;
+@class GCDAsyncSocket;
 
 @interface AppController : NSObject
 {
-	AsyncSocket *listenSocket;
+	GCDAsyncSocket *listenSocket;
 	NSMutableArray *connectedSockets;
 	
 	BOOL isRunning;
